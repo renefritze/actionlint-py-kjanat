@@ -33,7 +33,7 @@ jobs:
           VERSION=$(python ./_custom_build/version.py)
           {
           echo "# Test pip install call"
-          echo '```pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre actionlint-py=='"$VERSION"'```'
+          echo '```pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre actionlint-py-kjanat=='"$VERSION"'```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - run: |
@@ -56,7 +56,7 @@ jobs:
   publish-to-test:
     name: Publish to test Pypi
     needs: build
-    uses: Mateusz-Grzelinski/actionlint-py/.github/workflows/upload-to-pypi.yml@main
+    uses: ./.github/workflows/upload-to-pypi.yml
     permissions:
       id-token: write
       contents: write

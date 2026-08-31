@@ -74,4 +74,4 @@ jobs:
 
             See changes: ${{ steps.check-version.outputs.release_url }}
           branch: release-v${{ steps.check-version.outputs.version }}
-          assignees: Mateusz-Grzelinski
+          assignees: renefritze

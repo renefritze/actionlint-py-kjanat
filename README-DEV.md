@@ -10,13 +10,13 @@ Workflows take care of (todo update):
 - making a test release using version on branch `release*`
   [build.yml](.github/workflows/build-test-release.yml) and
   [release.yml](.github/workflows/upload-to-pypi.yml) and publishing it
-  to https://test.pypi.org/project/actionlint-py/#history
+  to https://test.pypi.org/project/actionlint-py-kjanat/#history
     - test version is set to `python -m "_custom_build" --version` + `.devN` (development version is updated
       automatically when PR is created)
 - making a public release using version _custom_build/VERSION_ACTIONLINT.txt
   [build.yml](.github/workflows/build-test-release.yml) and
   [release.yml](.github/workflows/upload-to-pypi.yml) and publishing it
-  to https://pypi.org/project/actionlint-py/
+  to https://pypi.org/project/actionlint-py-kjanat/
     - public version is set to `python -m "_custom_build" --version`
 - after `release*` branch is merged development version is reset to 0
   [version-dev.yml](.github/workflows/version-dev-reset.yml)
@@ -29,14 +29,14 @@ Workflows take care of (todo update):
 Specify precise version of use `--pre`, or both :)
 
 ```shell
-pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre actionlint-py==1.6.25.3.dev6
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre actionlint-py-kjanat==1.13.0.24.dev.1
 ```
 
 # Change actionlint version
 
 All details about actionlint source (and checksums) are stored in [setup.cfg](setup.cfg).
-The script [setup_auto_update.py](setup_auto_update.py) scraps the release page of actionlint and sets the checksums to
-the newest release. It is not great quality script, but it works. Just run:
+The script [auto_update_main.py](_custom_build/auto_update_main.py) scraps the release page of
+[kjanat/actionlint](https://github.com/kjanat/actionlint) and sets the checksums to the newest release. It is not great quality script, but it works. Just run:
 
 ```shell
 python auto_update_main.py
@@ -44,9 +44,9 @@ python auto_update_main.py
 
 # Manual release
 
-https://test.pypi.org/manage/project/actionlint-py/releases/
+https://test.pypi.org/manage/project/actionlint-py-kjanat/releases/
 
-https://pypi.org/manage/project/actionlint-py/releases/
+https://pypi.org/manage/project/actionlint-py-kjanat/releases/
 
 Install dependencies:
 

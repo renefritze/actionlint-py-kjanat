@@ -13,7 +13,10 @@ from version import VERSION_ACTIONLINT_TXT, reset_dev_version, get_actionlint_ve
 README_MD = os.path.join(os.path.dirname(__file__), "..", "README.md")
 assert os.path.isfile(README_MD), (os.getcwd(), README_MD)
 
-ACTIONLINT_RELEASES = "https://github.com/rhysd/actionlint/releases/"  # must end with "/"
+ACTIONLINT_REPO = "kjanat/actionlint"
+ACTIONLINT_REPO_URL = f"https://github.com/{ACTIONLINT_REPO}"
+ACTIONLINT_RELEASES = f"{ACTIONLINT_REPO_URL}/releases/"  # must end with "/"
+ACTIONLINT_TAG_LINK_PREFIX = f"/{ACTIONLINT_REPO}/tree/v"
 SETUP_CFG = os.path.join(os.path.dirname(__file__), "checksums.cfg")
 GITHUB_OUT = os.getenv("GITHUB_OUTPUT")
 
@@ -29,7 +32,8 @@ def get_release_page_links():
 
 def get_checksum_file(newest_release_link: str) -> str:
     checksum_link = (
-        "https://github.com/rhysd/actionlint/releases/download/v"
+        ACTIONLINT_RELEASES
+        + "download/v"
         + newest_release_link
         + "/actionlint_"
         + newest_release_link
@@ -42,13 +46,18 @@ def get_checksum_file(newest_release_link: str) -> str:
 
 def get_next_release_link(links: Iterable[str], current_version: semver.Version) -> Optional[Tuple[str, str]]:
     """Get next available version."""
-    all_versions = []
+    versions_with_links = []
     for link in links:
         link: str
-        if link.startswith("/rhysd/actionlint/tree/v"):
-            all_versions.append(link)
+        if not link.startswith(ACTIONLINT_TAG_LINK_PREFIX):
+            continue
+        version_str = link.split("/")[-1].lstrip("v")
+        if not semver.VersionInfo.is_valid(version_str):
+            # the repository also carries moving tags like "v1" that are not full semver versions
+            log.debug(f"Ignoring link to non-semver tag: {link}")
+            continue
+        versions_with_links.append((version_str, link))
 
-    versions_with_links = [(s.split("/")[-1].lstrip("v"), s) for s in all_versions]
     sorted_versions = sorted(
         versions_with_links,
         key=lambda x: semver.VersionInfo.parse(x[0]),
@@ -78,7 +87,7 @@ def update_config(checksum_file_content: str, current_version: str, newest_versi
         platform_config = config[sec]
         new_file_name = platform_config["file_name"].replace(current_version, newest_version_str)
         platform_config["file_name"] = new_file_name
-        url = f"https://github.com/rhysd/actionlint/releases/download/v{newest_version_str}/{new_file_name}"
+        url = f"{ACTIONLINT_RELEASES}download/v{newest_version_str}/{new_file_name}"
         platform_config["url"] = url
         platform_config["checksum"] = checksums[new_file_name].checksum
 

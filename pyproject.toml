@@ -7,9 +7,9 @@ build-backend = "setuptools.build_meta"
 #backend-path = ["_custom_build"]
 
 [project]
-name = "actionlint_py"
+name = "actionlint-py-kjanat"
 dynamic = ["version"]
-description = "Python wrapper around invoking actionlint (https://github.com/rhysd/actionlint)"
+description = "Python wrapper around invoking actionlint (https://github.com/kjanat/actionlint)"
 readme = "README.md"
 
 requires-python = ">=3.7"
@@ -36,8 +36,9 @@ dev = ["black"]
 auto_update = ["requests", "semver", "requests_html", "lxml[html_clean]"]
 
 [project.urls]
-"Homepage" = "https://github.com/Mateusz-Grzelinski/actionlint-py"
-"Bug Reports" = "https://github.com/Mateusz-Grzelinski/actionlint-py/issues"
+"Homepage" = "https://github.com/renefritze/actionlint-py"
+"Bug Reports" = "https://github.com/renefritze/actionlint-py/issues"
+"actionlint" = "https://github.com/kjanat/actionlint"
 
 [tool.black]
 line-length = 120

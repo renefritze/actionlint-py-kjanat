@@ -1,9 +1,12 @@
 > Note: for `pre-commit` hooks I recommend officially supported hooks:
-> See docs: https://github.com/rhysd/actionlint/blob/main/docs/usage.md#pre-commit
+> See docs: https://github.com/kjanat/actionlint/blob/main/docs/usage.md#pre-commit
 
-# actionlint-py
+# actionlint-py-kjanat
 
 A python wrapper to provide a pip-installable [actionlint] binary.
+
+This package wraps the [kjanat/actionlint][actionlint] fork of actionlint, not the original
+`rhysd/actionlint`. It is published to PyPI as [`actionlint-py-kjanat`][pypi].
 
 Internally this package provides a convenient way to download the pre-built
 actionlint binary for your particular platform.
@@ -11,7 +14,7 @@ actionlint binary for your particular platform.
 ### Installation
 
 ```bash
-pip install actionlint-py
+pip install actionlint-py-kjanat
 ```
 
 ### Usage
@@ -24,24 +27,24 @@ environment (or `actionlint.exe` on windows). Remember to add you `Scripts` fold
 See [pre-commit] for introduction.
 
 **I recommend using officially supported pre-commit hooks from actionlint itself**
-See docs: https://github.com/rhysd/actionlint/blob/main/docs/usage.md#pre-commit
+See docs: https://github.com/kjanat/actionlint/blob/main/docs/usage.md#pre-commit
 
 Use this repo if you can not use officially supported hooks (docker, golang, system) and you are fine with python `pip` wrapper.
 
 Sample `.pre-commit-config.yaml` using `pip` as package manager:
 
 ```yaml
-- repo: https://github.com/Mateusz-Grzelinski/actionlint-py
-  rev: v1.7.12.24
+- repo: https://github.com/renefritze/actionlint-py
+  rev: v1.13.0.24
   hooks:
     - id: actionlint
       additional_dependencies: [ pyflakes>=3.0.1, shellcheck-py>=0.9.0.5 ]
-      # actionlint has built in support for pyflakes and shellcheck, sadly they will not be auto updated. Check https://pypi.org/project/actionlint-py/ for latest version. Alternatively:
+      # actionlint has built in support for pyflakes and shellcheck, sadly they will not be auto updated. Check https://pypi.org/project/actionlint-py-kjanat/ for latest version. Alternatively:
       # args: [-shellcheck=/path/shellcheck -pyflakes=/path/pyflakes]
       # note - invalid path in arguments will fail silently
 ```
 
-Because `actionlint-py` is available as source distribution, pip build system will fetch binary from (public)
+Because `actionlint-py-kjanat` is available as source distribution, pip build system will fetch binary from (public)
 github. It might cause problems with corporate proxy. In case of problems try this semi-manual setup that respects
 your `pip.ini`:
 
@@ -51,10 +54,10 @@ your `pip.ini`:
     - id: actionlint
       name: actionlint
       description: Lint GitHub workflows with actionlint
-      additional_dependencies: [ actionlint-py ]
-      #additional_dependencies: [actionlint-py==1.7.12.24]
+      additional_dependencies: [ actionlint-py-kjanat ]
+      #additional_dependencies: [actionlint-py-kjanat==1.13.0.24]
       # safer, but pre-commit autoupdate will not work
-      # note: the pip versioning scheme is different from actionlint binary: not "v1.7.12" but "1.7.12.24" (last number is build system version)
+      # note: the pip versioning scheme is different from actionlint binary: not "v1.13.0" but "1.13.0.24" (last number is build system version)
       entry: actionlint
       #args: [-ignore "*.set-output. was depracated.*"]
       language: python
@@ -62,19 +65,21 @@ your `pip.ini`:
       files: "^.github/workflows/"
 ```
 
-[actionlint]: https://github.com/rhysd/actionlint
+[actionlint]: https://github.com/kjanat/actionlint
 
 [pre-commit]: https://pre-commit.com
+
+[pypi]: https://pypi.org/project/actionlint-py-kjanat/
 
 ## Alternative methods of running actionlint
 
 ### As pre-commit hooks
 
-See [official docs for pre-commit integration](https://github.com/rhysd/actionlint/blob/main/docs/usage.md#pre-commit)
+See [official docs for pre-commit integration](https://github.com/kjanat/actionlint/blob/main/docs/usage.md#pre-commit)
 
 ```yaml
-- repo: https://github.com/rhysd/actionlint
-  rev: v1.7.12
+- repo: https://github.com/kjanat/actionlint
+  rev: v1.13.0
   hooks:
     - id: actionlint
     # - id: actionlint-docker
@@ -84,7 +89,7 @@ See [official docs for pre-commit integration](https://github.com/rhysd/actionli
 ### Use as github action step
 
 Use directly in github action, see
-[official docs for github action integration](https://github.com/rhysd/actionlint/blob/main/docs/usage.md#use-actionlint-on-github-actions):
+[official docs for github action integration](https://github.com/kjanat/actionlint/blob/main/docs/usage.md#use-actionlint-on-github-actions):
 
 ```yaml
 name: Lint GitHub Actions workflows
@@ -97,7 +102,7 @@ jobs:
       - uses: actions/checkout@v5
       - name: Download actionlint
         id: get_actionlint
-        run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+        run: bash <(curl https://raw.githubusercontent.com/kjanat/actionlint/main/scripts/download-actionlint.bash)
         shell: bash
       - name: Check workflow files
         run: ${{ steps.get_actionlint.outputs.executable }} -color
@@ -116,7 +121,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - name: Check workflow files
-        uses: docker://rhysd/actionlint:latest
+        uses: docker://ghcr.io/kjanat/actionlint:latest
         with:
           args: -color
 ```
@@ -124,7 +129,7 @@ jobs:
 # Development
 
 Development of wrapper and releasing new version:
-see [README-DEV.md](https://github.com/Mateusz-Grzelinski/actionlint-py/blob/main/README-DEV.md)
+see [README-DEV.md](https://github.com/renefritze/actionlint-py/blob/main/README-DEV.md)
 
 # Roadmap
 
@@ -136,7 +141,7 @@ see [README-DEV.md](https://github.com/Mateusz-Grzelinski/actionlint-py/blob/mai
 - [ ] Upload also binary distribution, not only source distribution
 - [ ] Add unit tests to build system
 
-See [README-DEV.md](https://github.com/Mateusz-Grzelinski/actionlint-py/blob/main/README-DEV.md) for more TODOs.
+See [README-DEV.md](https://github.com/renefritze/actionlint-py/blob/main/README-DEV.md) for more TODOs.
 
 Won't do unless asked:
 

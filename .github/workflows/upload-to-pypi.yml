@@ -42,7 +42,7 @@ jobs:
 # bug workaround:
 # WARNING  Error during upload. Retry with the --verbose option for more details.
 # ERROR    HTTPError: 400 Bad Request from https://test.pypi.org/legacy/
-#          Binary wheel 'actionlint_py-1.6.24-py2.py3-none-linux_x86_64.whl' has
+#          Binary wheel 'actionlint_py_kjanat-1.13.0.24-py2.py3-none-linux_x86_64.whl' has
 #          an unsupported platform tag 'linux_x86_64'.
 #      - name: Publish package distributions to TestPyPI
 #        uses: pypa/gh-action-pypi-publish@release/v1
