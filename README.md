@@ -34,7 +34,7 @@ Use this repo if you can not use officially supported hooks (docker, golang, sys
 Sample `.pre-commit-config.yaml` using `pip` as package manager:
 
 ```yaml
-- repo: https://github.com/renefritze/actionlint-py
+- repo: https://github.com/renefritze/actionlint-py-kjanat
   rev: v1.13.0.24
   hooks:
     - id: actionlint
@@ -129,7 +129,7 @@ jobs:
 # Development
 
 Development of wrapper and releasing new version:
-see [README-DEV.md](https://github.com/renefritze/actionlint-py/blob/main/README-DEV.md)
+see [README-DEV.md](https://github.com/renefritze/actionlint-py-kjanat/blob/main/README-DEV.md)
 
 # Roadmap
 
@@ -141,7 +141,7 @@ see [README-DEV.md](https://github.com/renefritze/actionlint-py/blob/main/README
 - [ ] Upload also binary distribution, not only source distribution
 - [ ] Add unit tests to build system
 
-See [README-DEV.md](https://github.com/renefritze/actionlint-py/blob/main/README-DEV.md) for more TODOs.
+See [README-DEV.md](https://github.com/renefritze/actionlint-py-kjanat/blob/main/README-DEV.md) for more TODOs.
 
 Won't do unless asked:
 

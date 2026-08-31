@@ -36,8 +36,8 @@ dev = ["black"]
 auto_update = ["requests", "semver", "requests_html", "lxml[html_clean]"]
 
 [project.urls]
-"Homepage" = "https://github.com/renefritze/actionlint-py"
-"Bug Reports" = "https://github.com/renefritze/actionlint-py/issues"
+"Homepage" = "https://github.com/renefritze/actionlint-py-kjanat"
+"Bug Reports" = "https://github.com/renefritze/actionlint-py-kjanat/issues"
 "actionlint" = "https://github.com/kjanat/actionlint"
 
 [tool.black]
