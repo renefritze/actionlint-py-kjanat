@@ -1,0 +1,4 @@
+# VERSION_STATIC.txt only exists at build time, so spell the data files out
+# rather than relying on a version control plugin to find them
+include _custom_build/*.txt
+include _custom_build/*.cfg
