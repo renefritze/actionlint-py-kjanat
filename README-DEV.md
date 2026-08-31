@@ -62,10 +62,17 @@ reusable workflows [cannot be used as a trusted publisher][reusable], and why
 build and publish live directly in the workflow that gets triggered rather than
 in a shared one. Register:
 
-| index    | workflow                 | environment |
-| -------- | ------------------------ | ----------- |
-| PyPI     | `tag-and-release.yml`    | `PyPI`      |
-| TestPyPI | `build-test-release.yml` | `TestPyPI`  |
+| index    | repository                        | workflow                 | environment |
+| -------- | --------------------------------- | ------------------------ | ----------- |
+| PyPI     | `renefritze/actionlint-py-kjanat` | `tag-and-release.yml`    | `PyPI`      |
+| TestPyPI | `renefritze/actionlint-py-kjanat` | `build-test-release.yml` | `TestPyPI`  |
+
+The `repository` claim is matched as a literal string, so **renaming this
+repository invalidates both registrations**. The token exchange then fails with
+`invalid-publisher: valid token, but no corresponding publisher`, and the error
+helpfully prints the claims it did receive — the `repository` line there is the
+name the registration has to be edited to. Fix it on the trusted publisher
+itself; nothing in this repository can.
 
 Do not reintroduce a `workflow_call` hop in front of either publish job without
 moving the registration to whichever workflow is triggered.
