@@ -7,3 +7,5 @@ __pycache__
 /dist
 .pypirc
 *.pyc
+# resolved at build time from git, never committed
+_custom_build/VERSION_STATIC.txt

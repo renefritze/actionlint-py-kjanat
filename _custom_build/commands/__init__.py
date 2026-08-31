@@ -3,6 +3,7 @@ from .build import build
 from .fetch_binaries import fetch_binaries
 from .install import install
 from .install_actionlint import install_actionlint
+from .sdist import sdist
 
 __all__ = [
     "bdist_wheel",
@@ -10,4 +11,5 @@ __all__ = [
     "fetch_binaries",
     "install",
     "install_actionlint",
+    "sdist",
 ]

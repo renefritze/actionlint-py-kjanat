@@ -60,6 +60,7 @@ install_actionlint="_custom_build.install_actionlint"
 install="_custom_build.install"
 build="_custom_build.build"
 bdist_wheel="_custom_build.bdist_wheel"
+sdist="_custom_build.sdist"
 
 [tool.setuptools.dynamic]
 version = {attr = "_custom_build.VERSION"}

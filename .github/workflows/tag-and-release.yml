@@ -1,5 +1,5 @@
-# only run on master and if package files changed
-# bump build system version and publish package
+# only run on main and if package files changed
+# tag the current commit and publish that tag to pypi
 name: Tag and release
 
 on:
@@ -22,58 +22,14 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v5
-      - name: 'Get Previous tag'
-        id: previoustag
-        uses: "WyriHaximus/github-action-get-previous-tag@v1"
-      - uses: dorny/paths-filter@v2
-        id: build_system_changed
         with:
-          base: ${{ steps.previoustag.outputs.tag }}
-          list-files: csv
-          filters: |
-            build:
-              - '_custom_build/**.py'
-              - pyproject.toml
-              - LICENSE
-              - _custom_build/checksums.cfg
-            bin:
-              - _custom_build/VERSION_ACTIONLINT.txt
-            dev:
-              - _custom_build/VERSION_DEV.txt
-      - uses: dorny/paths-filter@v2
-        id: changes
-        with:
-          base: ${{ steps.previoustag.outputs.tag }}
-          list-files: csv
-          filters: |
-            build:
-              - '_custom_build/**.py'
-              - pyproject.toml
-              - LICENSE
-              - _custom_build/checksums.cfg
-            bin:
-              - _custom_build/VERSION_ACTIONLINT.txt
-            dev:
-              - _custom_build/VERSION_DEV.txt
-
-      - name: Increment build system version, reset dev version
-        if: steps.changes.outputs.build == 'true'
-        run: |
-          echo "Previous version: $(python ./_custom_build/version.py)"
-          python ./_custom_build/version.py --increment-build --reset-dev
-          echo "Current version: $(python ./_custom_build/version.py)"
-      - name: Reset dev version
-        if: steps.changes.outputs.dev == 'true'
-        run: |
-          python ./_custom_build/version.py --reset-dev
+          # the version is derived from the tags and the distance to them, so
+          # the whole history has to be here - a shallow checkout has neither
+          fetch-depth: 0
       - name: Get version
         id: get-version
         run: |
           echo "version=$(python ./_custom_build/version.py --release)" | tee "$GITHUB_OUTPUT"
-      - name: Push commit if needed
-        uses: stefanzweifel/git-auto-commit-action@v6
-        with:
-          commit_message: Increment build system version to ${{ steps.get-version.outputs.version }}
       - name: Push tag only
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
@@ -98,6 +54,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: v${{ needs.tag.outputs.version }}
+          fetch-depth: 0
       - name: Set up Python
         id: set-up-python
         uses: actions/setup-python@v4

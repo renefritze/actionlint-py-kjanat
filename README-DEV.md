@@ -4,23 +4,46 @@ Workflows take care of (todo update):
 
 - checking for updates every day: [check-for-update.yml](.github/workflows/check-for-update.yml)
   and [auto_update_main.py](_custom_build/auto_update_main.py)
-- tagging a git commit using only version in file: `_custom_build/VERSION_ACTIONLINT.txt`
-  in [tag.yml](.github/workflows/tag-and-release.yml)
-    - todo: it is not ideal that pip version and tag is different...
-- making a test release using version on branch `release*`
+- tagging a git commit and releasing it
+  [tag-and-release.yml](.github/workflows/tag-and-release.yml), which tags, builds and
+  publishes to https://pypi.org/project/actionlint-py-kjanat/
+- making a test release on every PR
   [build-test-release.yml](.github/workflows/build-test-release.yml), publishing it
   to https://test.pypi.org/project/actionlint-py-kjanat/#history
-    - test version is set to `python -m "_custom_build" --version` + `.devN` (development version is updated
-      automatically when PR is created)
-- making a public release using version _custom_build/VERSION_ACTIONLINT.txt
-  [tag-and-release.yml](.github/workflows/tag-and-release.yml), which tags, builds and
-  publishes it to https://pypi.org/project/actionlint-py-kjanat/
-    - public version is set to `python -m "_custom_build" --version`
-- after `release*` branch is merged development version is reset to 0
-  [version-dev.yml](.github/workflows/version-dev-reset.yml)
-- after `release*` branch is merged build system version is incremented
-  [version-build-system.yml](.github/workflows/version-build-system.yml)
-- todo: those workflow means I can not write protect main branch...
+
+# Versioning
+
+The pip version is `<actionlint version>.<build system version>`, optionally with a
+`.devN` suffix on test builds. Only the first part is stored:
+
+| part                | where it comes from                                            |
+| ------------------- | -------------------------------------------------------------- |
+| actionlint version  | `_custom_build/VERSION_ACTIONLINT.txt`, bumped by the update job |
+| build system version | the last `v*` tag's own build system version, plus the number of commits since that tag |
+| `.devN`             | `ACTIONLINT_PY_DEV_VERSION`, set to the run number by the test release workflow |
+
+So the build system version rises by one on every commit and is not written down
+anywhere. `python ./_custom_build/version.py` prints what the current checkout
+would release; `--release` additionally fails if the result carries a `.devN`
+suffix. Recomputing on the tag that was just pushed gives the same answer,
+because the distance to it is then zero.
+
+This is why the release workflow no longer pushes anything to `main`: there is no
+counter file to increment, so it only creates a tag, which branch protection does
+not stand in the way of. It is also why every checkout in those workflows uses
+`fetch-depth: 0` - without the tags there is nothing to measure the distance from.
+
+An sdist has no git history to read, and an sdist is the only thing pypi serves
+for this project. The `sdist` command therefore freezes the resolved version into
+`_custom_build/VERSION_STATIC.txt` before the file list is collected, and
+`version.py` falls back to that file when it is not looking at this repository.
+The file is generated, gitignored, and only consulted outside a checkout, so a
+stale one can never win over git.
+
+One thing this gives up: the version references in `README.md` (the hook `rev:`,
+the pinned `additional_dependencies` example) used to be rewritten by the release
+job, which could only work because it pushed a commit. Update them by hand, or
+with the daily actionlint update PR.
 
 ## Use actionlint from test mirror
 

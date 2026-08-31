@@ -8,7 +8,7 @@ import requests
 import semver
 from requests_html import HTMLSession
 
-from version import VERSION_ACTIONLINT_TXT, reset_dev_version, get_actionlint_version, get_pip_version, VERSION
+from version import VERSION_ACTIONLINT_TXT, get_actionlint_version, get_pip_version, VERSION
 
 README_MD = os.path.join(os.path.dirname(__file__), "..", "README.md")
 assert os.path.isfile(README_MD), (os.getcwd(), README_MD)
@@ -98,7 +98,6 @@ def update_config(checksum_file_content: str, current_version: str, newest_versi
 def update_actionlint_version(newest_version_str):
     with open(VERSION_ACTIONLINT_TXT, "w") as file:
         file.write(newest_version_str)
-    reset_dev_version()  # just to be sure
 
 
 def update_readme(current_version: str, new_version: str):

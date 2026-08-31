@@ -1,26 +1,17 @@
 import os
+import subprocess
 from argparse import ArgumentParser
 
 _this_dir = os.path.dirname(__file__)
 # VERSION_ACTIONLINT.txt is version of actionlint library
 VERSION_ACTIONLINT_TXT = os.path.join(_this_dir, "VERSION_ACTIONLINT.txt")
-VERSION_BUILD_SYSTEM_TXT = os.path.join(_this_dir, "VERSION_BUILD_SYSTEM.txt")
-VERSION_DEV_TXT = os.path.join(_this_dir, "VERSION_DEV.txt")
-GITHUB_OUT = os.getenv("GITHUB_OUTPUT")
-
-
-def get_pip_version():
-    global VERSION
-    with open(VERSION_ACTIONLINT_TXT) as f:
-        # VERSION_BUILD_SYSTEM.txt is version of this build system
-        with open(VERSION_BUILD_SYSTEM_TXT) as f_build:
-            with open(VERSION_DEV_TXT) as f_dev:
-                # used by pyproject.toml
-                v = ".".join([f.read().strip(), f_build.read().strip()])
-                __dev_version = f_dev.read().strip()
-                if __dev_version != "0":
-                    v += f".dev.{__dev_version}"
-                return v
+# the build system version is derived from git, so a distribution built outside
+# a checkout - an unpacked sdist, which is what pypi serves - carries the value
+# resolved at build time instead. Written by the sdist command, never committed.
+VERSION_STATIC_TXT = os.path.join(_this_dir, "VERSION_STATIC.txt")
+# set by the test release workflow to the run number, which is unique and
+# monotonic per workflow, so a dev version never has to be stored either
+DEV_VERSION_ENV = "ACTIONLINT_PY_DEV_VERSION"
 
 
 def get_actionlint_version():
@@ -28,74 +19,103 @@ def get_actionlint_version():
         return r.read().strip()
 
 
+def _git(*args):
+    return subprocess.run(
+        ("git",) + args,
+        cwd=_this_dir,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+
+
+def _in_own_checkout():
+    """an unpacked sdist can sit inside an unrelated repository, whose tags say
+    nothing about this package - only trust git when it found *this* project"""
+    try:
+        toplevel = _git("rev-parse", "--show-toplevel")
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return os.path.exists(os.path.join(toplevel, "_custom_build", "VERSION_ACTIONLINT.txt"))
+
+
+def get_build_version():
+    """build system version = the last release tag's own build version, plus the
+    number of commits made since it. Monotonic on every commit, identical when
+    recomputed on the tag that was just pushed, and stored nowhere."""
+    if not _in_own_checkout():
+        return None
+    try:
+        described = _git("describe", "--tags", "--long", "--match", "v[0-9]*")
+    except (OSError, subprocess.CalledProcessError):
+        # no release tag yet: count from the root commit instead
+        try:
+            return int(_git("rev-list", "--count", "HEAD"))
+        except (OSError, subprocess.CalledProcessError, ValueError):
+            return 0
+    tag, distance, _commit = described.rsplit("-", 2)
+    try:
+        return int(tag.rsplit(".", 1)[1]) + int(distance)
+    except ValueError:
+        return int(_git("rev-list", "--count", "HEAD"))
+
+
+def has_release_tag():
+    """a checkout with no reachable v* tag - a shallow one, typically, since
+    actions/checkout fetches no tags by default - has nothing to measure from"""
+    if not _in_own_checkout():
+        return False
+    try:
+        _git("describe", "--tags", "--long", "--match", "v[0-9]*")
+        return True
+    except (OSError, subprocess.CalledProcessError):
+        return False
+
+
+def get_pip_version():
+    build_version = get_build_version()
+    if build_version is None:
+        try:
+            with open(VERSION_STATIC_TXT) as f:
+                return f.read().strip()
+        except OSError:
+            raise RuntimeError(
+                f"not a git checkout and {VERSION_STATIC_TXT} is missing, so there is no version to report"
+            )
+    v = f"{get_actionlint_version()}.{build_version}"
+    dev_version = os.environ.get(DEV_VERSION_ENV)
+    if dev_version:
+        v += f".dev{int(dev_version)}"
+    return v
+
+
+def write_static_version():
+    """freeze the resolved version into the source tree so it survives into an
+    sdist, where there is no git history left to derive it from"""
+    version = get_pip_version()
+    with open(VERSION_STATIC_TXT, "w") as f:
+        f.write(f"{version}\n")
+    return version
+
+
 VERSION = get_pip_version()
-
-
-def increment_build_version():
-    with open(VERSION_BUILD_SYSTEM_TXT) as f:
-        version = int(f.read().strip())
-    with open(VERSION_BUILD_SYSTEM_TXT, "w") as f_w:
-        f_w.write(f"{version + 1}\n")
-
-
-def increment_dev_version():
-    with open(VERSION_DEV_TXT) as f:
-        version = int(f.read().strip())
-    with open(VERSION_DEV_TXT, "w") as f_w:
-        f_w.write(f"{version + 1}\n")
-
-
-def set_dev_version(version: int):
-    with open(VERSION_DEV_TXT, "w") as f_w:
-        f_w.write(f"{version}\n")
-
-
-def reset_dev_version():
-    set_dev_version(0)
 
 
 def main():
     args = ArgumentParser()
-    args.add_argument("--release", help="error if in version contains '.dev.N' string", action="store_true")
-    args.add_argument("--increment-build", help="increment VERSION_BUILD_SYSTEM.txt", action="store_true")
-    args.add_argument("--increment-dev", help="increment VERSION_DEV.txt", action="store_true")
-    args.add_argument("--reset-dev", help="set VERSION_DEV.txt to 0", action="store_true")
-    args.add_argument(
-        "--set-dev",
-        type=int,
-        metavar="N",
-        help="set VERSION_DEV.txt to N. Pass a value that is unique per build (CI passes the workflow run"
-        " number) so the dev version does not have to be committed back to the branch",
-    )
+    args.add_argument("--release", help="error if the version contains a '.devN' suffix", action="store_true")
     return args.parse_args()
-
-
-README = os.path.join(_this_dir, "..", "README.md")
-
-
-def fix_readme(old_version: str, new_version: str):
-    with open(README, "r") as f_r:
-        f_content = f_r.read()
-    with open(README, "w") as f_w:
-        new_f_content = f_content.replace(old_version, new_version)
-        f_w.write(new_f_content)
 
 
 if __name__ == "__main__":
     args = main()
-    if args.release and ".dev." in VERSION:
-        print(f"ERROR: the version is {VERSION} and should not contain .dev.N")
+    if args.release and _in_own_checkout() and not has_release_tag():
+        # without a tag the build version falls back to counting from the root
+        # commit, which would quietly release something below the last version
+        print("ERROR: no v* tag is reachable, so the version cannot be derived - check out with fetch-depth: 0")
         exit(1)
-    prev_version = get_pip_version()
-    if args.increment_build:
-        increment_build_version()
-    if args.increment_dev:
-        increment_dev_version()
-    if args.set_dev is not None:
-        set_dev_version(args.set_dev)
-    if args.reset_dev:
-        reset_dev_version()
-    current_version = get_pip_version()
-    if prev_version != current_version:
-        fix_readme(prev_version, current_version)
-    print(current_version)
+    version = get_pip_version()
+    if args.release and ".dev" in version:
+        print(f"ERROR: the version is {version} and should not contain .devN")
+        exit(1)
+    print(version)
