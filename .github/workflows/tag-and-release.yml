@@ -60,7 +60,7 @@ jobs:
         if: steps.changes.outputs.build == 'true'
         run: |
           echo "Previous version: $(python ./_custom_build/version.py)"
-          python ./_custom_build/version.py --reset-dev
+          python ./_custom_build/version.py --increment-build --reset-dev
           echo "Current version: $(python ./_custom_build/version.py)"
       - name: Reset dev version
         if: steps.changes.outputs.dev == 'true'
