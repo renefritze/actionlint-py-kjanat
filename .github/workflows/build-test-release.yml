@@ -56,11 +56,22 @@ jobs:
   publish-to-test:
     name: Publish to test Pypi
     needs: build
-    uses: ./.github/workflows/upload-to-pypi.yml
+    runs-on: ubuntu-latest
+    environment:
+      name: TestPyPI
+    # trusted publishing: the OIDC token replaces an API token entirely
     permissions:
       id-token: write
-      contents: write
-    with:
-      upload-mirror: "https://test.pypi.org/legacy/"
-    secrets:
-      pypi-token: ${{ secrets.TEST_PYPI_API_TOKEN }}
+    steps:
+      - name: Download package distributions
+        uses: actions/download-artifact@v5
+        with:
+          name: build
+          path: dist/
+      - name: Keep only the source distribution
+        # the wheel is platform tagged (e.g. linux_x86_64), which pypi rejects
+        run: rm -f dist/*.whl
+      - name: Publish package distributions to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

@@ -91,4 +91,3 @@ jobs:
       contents: write
     with:
       tag: v${{ needs.tag.outputs.version }}
-    secrets: inherit
