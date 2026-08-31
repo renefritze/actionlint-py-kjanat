@@ -60,7 +60,7 @@ jobs:
         if: steps.changes.outputs.build == 'true'
         run: |
           echo "Previous version: $(python ./_custom_build/version.py)"
-          python ./_custom_build/version.py --reset-dev
+          python ./_custom_build/version.py --increment-build --reset-dev
           echo "Current version: $(python ./_custom_build/version.py)"
       - name: Reset dev version
         if: steps.changes.outputs.dev == 'true'
@@ -145,3 +145,7 @@ jobs:
         run: rm -f dist/*.whl
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # a manual re-run of an already released version has nothing new to
+          # upload, so treat it as a no-op instead of a 400 File already exists
+          skip-existing: true
