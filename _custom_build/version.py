@@ -45,9 +45,13 @@ def increment_dev_version():
         f_w.write(f"{version + 1}\n")
 
 
-def reset_dev_version():
+def set_dev_version(version: int):
     with open(VERSION_DEV_TXT, "w") as f_w:
-        f_w.write(f"0\n")
+        f_w.write(f"{version}\n")
+
+
+def reset_dev_version():
+    set_dev_version(0)
 
 
 def main():
@@ -56,6 +60,13 @@ def main():
     args.add_argument("--increment-build", help="increment VERSION_BUILD_SYSTEM.txt", action="store_true")
     args.add_argument("--increment-dev", help="increment VERSION_DEV.txt", action="store_true")
     args.add_argument("--reset-dev", help="set VERSION_DEV.txt to 0", action="store_true")
+    args.add_argument(
+        "--set-dev",
+        type=int,
+        metavar="N",
+        help="set VERSION_DEV.txt to N. Pass a value that is unique per build (CI passes the workflow run"
+        " number) so the dev version does not have to be committed back to the branch",
+    )
     return args.parse_args()
 
 
@@ -80,6 +91,8 @@ if __name__ == "__main__":
         increment_build_version()
     if args.increment_dev:
         increment_dev_version()
+    if args.set_dev is not None:
+        set_dev_version(args.set_dev)
     if args.reset_dev:
         reset_dev_version()
     current_version = get_pip_version()

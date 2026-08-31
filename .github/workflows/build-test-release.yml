@@ -1,4 +1,5 @@
-# this job increments dev version, builds and publishes a test package
+# this job builds and publishes a test package
+# the dev version is derived from the run number, never committed back to the branch
 name: Build test release
 on:
   pull_request:
@@ -11,7 +12,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
     steps:
       - name: Check out repository code
         uses: actions/checkout@v5
@@ -24,16 +25,18 @@ jobs:
           python -m pip install --upgrade pip
           pip install build twine
 
-      - name: Increment dev version
+      - name: Set dev version from the run number
+        # unique and monotonic per run, so nothing has to be committed back to
+        # the branch - a push here would retrigger this workflow on every run
         run: |
-          python ./_custom_build/version.py --increment-dev
+          python ./_custom_build/version.py --set-dev "$GITHUB_RUN_NUMBER"
 
       - run: |
           python -m build
           VERSION=$(python ./_custom_build/version.py)
           {
           echo "# Test pip install call"
-          echo '```pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre actionlint-py=='"$VERSION"'```'
+          echo '```pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ --pre actionlint-py-kjanat=='"$VERSION"'```'
           } >> "$GITHUB_STEP_SUMMARY"
 
       - run: |
@@ -48,19 +51,27 @@ jobs:
           name: build
           path: dist/
 
-      # commit only if everything succeeds
-      - uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-          commit_message: Increment dev version
-
   publish-to-test:
     name: Publish to test Pypi
     needs: build
-    uses: Mateusz-Grzelinski/actionlint-py/.github/workflows/upload-to-pypi.yml@main
+    runs-on: ubuntu-latest
+    environment:
+      name: TestPyPI
+    # trusted publishing: the OIDC token replaces an API token entirely
     permissions:
       id-token: write
-      contents: write
-    with:
-      upload-mirror: "https://test.pypi.org/legacy/"
-    secrets:
-      pypi-token: ${{ secrets.TEST_PYPI_API_TOKEN }}
+    steps:
+      - name: Download package distributions
+        uses: actions/download-artifact@v5
+        with:
+          name: build
+          path: dist/
+      - name: Keep only the source distribution
+        # the wheel is platform tagged (e.g. linux_x86_64), which pypi rejects
+        run: rm -f dist/*.whl
+      - name: Publish package distributions to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          # a re-run reuses the run number, so the sdist is already uploaded
+          skip-existing: true

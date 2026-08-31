@@ -40,7 +40,7 @@ jobs:
           python -m build
           VERSION=$(python ./_custom_build/version.py)
           echo "# Release pip install call"
-          echo '```pip install actionlint-py=='"$VERSION"'```' >> "$GITHUB_STEP_SUMMARY"
+          echo '```pip install actionlint-py-kjanat=='"$VERSION"'```' >> "$GITHUB_STEP_SUMMARY"
 
       - run: |
           {
@@ -58,11 +58,20 @@ jobs:
     name: Publish to public Pypi
     needs: build
     #    if: startsWith(github.ref, 'refs/tags') && !contains(github.ref, 'dev') && !contains(github.ref, 'release')
-    uses: Mateusz-Grzelinski/actionlint-py/.github/workflows/upload-to-pypi.yml@main
+    runs-on: ubuntu-latest
+    environment:
+      name: PyPI
+    # trusted publishing: the OIDC token replaces an API token entirely
     permissions:
       id-token: write
-      contents: write
-    with:
-      upload-mirror: "https://upload.pypi.org/legacy/"
-    secrets:
-      pypi-token: ${{ secrets.PYPI_API_TOKEN }}
+    steps:
+      - name: Download package distributions
+        uses: actions/download-artifact@v5
+        with:
+          name: build
+          path: dist/
+      - name: Keep only the source distribution
+        # the wheel is platform tagged (e.g. linux_x86_64), which pypi rejects
+        run: rm -f dist/*.whl
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
