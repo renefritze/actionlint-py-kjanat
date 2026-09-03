@@ -35,7 +35,7 @@ Sample `.pre-commit-config.yaml` using `pip` as package manager:
 
 ```yaml
 - repo: https://github.com/renefritze/actionlint-py-kjanat
-  rev: v1.13.0.24
+  rev: v1.14.0.24
   hooks:
     - id: actionlint
       additional_dependencies: [ pyflakes>=3.0.1, shellcheck-py>=0.9.0.5 ]
@@ -55,9 +55,9 @@ your `pip.ini`:
       name: actionlint
       description: Lint GitHub workflows with actionlint
       additional_dependencies: [ actionlint-py-kjanat ]
-      #additional_dependencies: [actionlint-py-kjanat==1.13.0.24]
+      #additional_dependencies: [actionlint-py-kjanat==1.14.0.24]
       # safer, but pre-commit autoupdate will not work
-      # note: the pip versioning scheme is different from actionlint binary: not "v1.13.0" but "1.13.0.24" (last number is build system version)
+      # note: the pip versioning scheme is different from actionlint binary: not "v1.14.0" but "1.14.0.24" (last number is build system version)
       entry: actionlint
       #args: [-ignore "*.set-output. was depracated.*"]
       language: python
@@ -79,7 +79,7 @@ See [official docs for pre-commit integration](https://github.com/kjanat/actionl
 
 ```yaml
 - repo: https://github.com/kjanat/actionlint
-  rev: v1.13.0
+  rev: v1.14.0
   hooks:
     - id: actionlint
     # - id: actionlint-docker
