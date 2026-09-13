@@ -100,9 +100,19 @@ itself; nothing in this repository can.
 Do not reintroduce a `workflow_call` hop in front of either publish job without
 moving the registration to whichever workflow is triggered.
 
-Only the source distribution is uploaded. `python -m build` also produces a
-wheel, but `_custom_build/commands/bdist_wheel.py` marks it as platform specific
-(`root_is_pure = False`), and pypi rejects the resulting `linux_x86_64` tag.
+The source distribution is uploaded alongside one wheel per platform
+(Linux x86_64/aarch64, macOS arm64, Windows amd64), built in a matrix job.
+`_custom_build/commands/bdist_wheel.py` marks the wheel as platform specific
+(`root_is_pure = False`) because it embeds a fetched `actionlint` binary, but
+the plain platform tag `bdist_wheel` derives on Linux (e.g. `linux_x86_64`) is
+not one PyPI accepts. The embedded binary is a statically linked Go
+executable with no glibc symbol version dependency, so the Linux build steps
+retag it as `manylinux_2_17_*.manylinux2014_*` with `python -m wheel tags`
+instead — a truthful tag, not just a permissive one. macOS and Windows wheels
+keep the tag `bdist_wheel` derives by default. There is no Intel macOS wheel:
+GitHub retired the `macos-13` hosted runner, and tagging an aarch64-built
+wheel as x86_64 would ship the wrong binary inside it — installs on Intel
+Macs still fall back to the sdist.
 
 [trusted-publishing]: https://docs.pypi.org/trusted-publishers/
 
