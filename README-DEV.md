@@ -114,12 +114,25 @@ the `macos-13` hosted runner, and tagging an aarch64-built wheel as x86_64
 would ship the wrong binary inside it — installs on Intel Macs still fall back
 to the sdist.
 
-Every wheel is installed into a throwaway environment before it is uploaded,
-and the `actionlint` it carries has to lint one clean workflow and reject one
-with a missing `steps` section. A wheel that merely builds proves nothing about
-the binary inside it: the build fetches that binary per platform, so this is the
-step that would catch an archive that unpacked wrong or a binary that cannot
-execute on the platform its tag claims.
+Every wheel is installed into a throwaway environment before it is uploaded and
+the `actionlint` it carries is put to work, against the fixtures in
+`tests/fixtures/` (which live outside `.github/workflows` so they never run as
+workflows, and are not shipped in either distribution). A wheel that merely
+builds proves nothing about the binary inside it — the build fetches that binary
+per platform — so the step asserts three things:
+
+- `actionlint --version` reports exactly the version in
+  `_custom_build/VERSION_ACTIONLINT.txt`. Nothing else checks this, so a stale
+  build, or a `checksums.cfg` that drifted from `VERSION_ACTIONLINT.txt`, would
+  otherwise ship a perfectly working binary of the wrong version.
+- `valid-workflow.yml` — contexts, a matrix, an action reference and a shell
+  body — comes back clean.
+- `invalid-workflow.yml` is rejected **with an `[expression]` diagnostic**. Its
+  only fault is an undefined context property, which is valid YAML, so catching
+  it takes actionlint's expression type checker. Requiring that specific
+  diagnostic rather than just a non-zero exit is the point: a binary whose
+  checkers were dead would still "fail" a fixture that merely refuses to parse,
+  and would sail through a weaker test.
 
 The workflows drive all of this through `uv` (`uv build`, `uv venv`,
 `uv pip install`, and `uvx` for `twine` and `wheel`), which also supplies the

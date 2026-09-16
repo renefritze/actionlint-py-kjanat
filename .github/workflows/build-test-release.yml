@@ -102,39 +102,39 @@ jobs:
           uvx twine check dist/*
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Install the wheel and lint with the binary it carries
+      - name: Install the wheel and exercise the binary it carries
         run: |
           uv venv .wheel-test
           uv pip install --python .wheel-test dist/*.whl
           run_actionlint() { uv run --no-project --python .wheel-test actionlint "$@"; }
 
-          run_actionlint --version
+          # the wheel has to carry the binary it claims to wrap. Nothing else
+          # checks this: fetch_binaries picks the download per platform, so a
+          # stale build or a checksums.cfg that drifted from
+          # VERSION_ACTIONLINT.txt would ship a working binary of the wrong
+          # version and every other step here would still pass.
+          wrapped=$(tr -d '[:space:]' < _custom_build/VERSION_ACTIONLINT.txt)
+          reported=$(run_actionlint --version | head -n1)
+          if [ "$reported" != "$wrapped" ]; then
+            echo "::error::the wheel wraps actionlint $wrapped but the binary reports $reported"
+            exit 1
+          fi
 
-          # a binary that only prints its version is not proven to work, so lint
-          # one clean workflow and one whose error actionlint has to catch, and
-          # require the two to disagree. The error is a missing `steps`, checked
-          # by the parser itself rather than against the bundled runner label
-          # list, which changes between actionlint releases.
-          mkdir -p .wheel-smoke
-          cat > .wheel-smoke/valid.yml <<'YAML'
-          name: wheel smoke test
-          on: push
-          jobs:
-            smoke:
-              runs-on: ubuntu-latest
-              steps:
-                - run: echo hello
-          YAML
-          cat > .wheel-smoke/invalid.yml <<'YAML'
-          name: wheel smoke test
-          on: push
-          jobs:
-            smoke:
-              runs-on: ubuntu-latest
-          YAML
-          run_actionlint .wheel-smoke/valid.yml
-          if run_actionlint .wheel-smoke/invalid.yml; then
-            echo "::error::the packaged actionlint accepted a job with no steps"
+          # a workflow with contexts, a matrix, an action reference and a shell
+          # body has to come back clean
+          run_actionlint tests/fixtures/valid-workflow.yml
+
+          # and one whose only fault is an undefined context property has to be
+          # rejected. That fixture is valid YAML, so catching it takes
+          # actionlint's expression type checker - a binary whose checkers were
+          # dead would still "pass" a fixture that merely fails to parse.
+          if run_actionlint tests/fixtures/invalid-workflow.yml > .wheel-test/smoke.log 2>&1; then
+            echo "::error::the packaged actionlint accepted an undefined context property"
+            exit 1
+          fi
+          if ! grep -q '\[expression\]' .wheel-test/smoke.log; then
+            echo "::error::actionlint rejected the fixture, but not with the [expression] diagnostic it should have"
+            cat .wheel-test/smoke.log
             exit 1
           fi
 
