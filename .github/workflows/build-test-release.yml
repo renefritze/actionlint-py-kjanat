@@ -108,6 +108,10 @@ jobs:
           uv pip install --python .wheel-test dist/*.whl
           run_actionlint() { uv run --no-project --python .wheel-test actionlint "$@"; }
 
+          # each check below says what it verified: a step that passes in
+          # silence is indistinguishable from one that did nothing, which is
+          # the failure mode `shell: bash` above exists to fix.
+
           # the wheel has to carry the binary it claims to wrap. Nothing else
           # checks this: fetch_binaries picks the download per platform, so a
           # stale build or a checksums.cfg that drifted from
@@ -119,10 +123,12 @@ jobs:
             echo "::error::the wheel wraps actionlint $wrapped but the binary reports $reported"
             exit 1
           fi
+          echo "version: the binary reports $reported, matching VERSION_ACTIONLINT.txt"
 
           # a workflow with contexts, a matrix, an action reference and a shell
           # body has to come back clean
           run_actionlint tests/fixtures/valid-workflow.yml
+          echo "valid fixture: accepted"
 
           # and one whose only fault is an undefined context property has to be
           # rejected. That fixture is valid YAML, so catching it takes
@@ -137,6 +143,7 @@ jobs:
             cat .wheel-test/smoke.log
             exit 1
           fi
+          echo "invalid fixture: rejected with the [expression] diagnostic"
 
       - name: Upload wheel
         uses: actions/upload-artifact@v4
