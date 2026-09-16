@@ -100,9 +100,47 @@ itself; nothing in this repository can.
 Do not reintroduce a `workflow_call` hop in front of either publish job without
 moving the registration to whichever workflow is triggered.
 
-Only the source distribution is uploaded. `python -m build` also produces a
-wheel, but `_custom_build/commands/bdist_wheel.py` marks it as platform specific
-(`root_is_pure = False`), and pypi rejects the resulting `linux_x86_64` tag.
+The source distribution is uploaded alongside one wheel per platform
+(Linux x86_64/aarch64, macOS arm64, Windows amd64), built in a matrix job.
+`_custom_build/commands/bdist_wheel.py` marks the wheel as platform specific
+(`root_is_pure = False`) because it embeds a fetched `actionlint` binary, but
+the plain platform tag `bdist_wheel` derives on Linux (e.g. `linux_x86_64`) is
+not one PyPI accepts. The embedded binary is a statically linked Go
+executable with no glibc symbol version dependency, so the Linux build steps
+retag it as `manylinux_2_17_*.manylinux2014_*` with `wheel tags` instead — a
+truthful tag, not just a permissive one. macOS and Windows wheels keep the tag
+`bdist_wheel` derives by default. There is no Intel macOS wheel: GitHub retired
+the `macos-13` hosted runner, and tagging an aarch64-built wheel as x86_64
+would ship the wrong binary inside it — installs on Intel Macs still fall back
+to the sdist.
+
+Every wheel is installed into a throwaway environment before it is uploaded and
+the `actionlint` it carries is put to work, against the fixtures in
+`tests/fixtures/` (which live outside `.github/workflows` so they never run as
+workflows, and are not shipped in either distribution). A wheel that merely
+builds proves nothing about the binary inside it — the build fetches that binary
+per platform — so the step asserts three things:
+
+- `actionlint --version` reports exactly the version in
+  `_custom_build/VERSION_ACTIONLINT.txt`. Nothing else checks this, so a stale
+  build, or a `checksums.cfg` that drifted from `VERSION_ACTIONLINT.txt`, would
+  otherwise ship a perfectly working binary of the wrong version.
+- `valid-workflow.yml` — contexts, a matrix, an action reference and a shell
+  body — comes back clean.
+- `invalid-workflow.yml` is rejected **with an `[expression]` diagnostic**. Its
+  only fault is an undefined context property, which is valid YAML, so catching
+  it takes actionlint's expression type checker. Requiring that specific
+  diagnostic rather than just a non-zero exit is the point: a binary whose
+  checkers were dead would still "fail" a fixture that merely refuses to parse,
+  and would sail through a weaker test.
+
+The workflows drive all of this through `uv` (`uv build`, `uv venv`,
+`uv pip install`, and `uvx` for `twine` and `wheel`), which also supplies the
+interpreter — there is no `actions/setup-python` step. Both matrix jobs set
+`shell: bash` for every step: under the Windows default (`pwsh`) a
+`{ ... } >> "$GITHUB_STEP_SUMMARY"` block appends its own source text instead of
+running it, and `dist/*.whl` is not expanded, so those steps report success
+having done nothing.
 
 [trusted-publishing]: https://docs.pypi.org/trusted-publishers/
 
@@ -114,19 +152,30 @@ https://test.pypi.org/manage/project/actionlint-py-kjanat/releases/
 
 https://pypi.org/manage/project/actionlint-py-kjanat/releases/
 
-Install dependencies:
+The only dependency is [uv]; it fetches the interpreter and every tool below on
+demand.
+
+Build and check, the same way the workflows do it:
 
 ```shell
-pip install --upgrade build twine
+uv build --sdist
+uv build --wheel
+uvx twine check dist/*
 ```
 
-Build and check:
+On Linux the wheel comes out tagged `linux_x86_64`, which PyPI rejects. Retag it
+before uploading (use `manylinux_2_17_aarch64.manylinux2014_aarch64` on arm64):
 
 ```shell
-# python .\setup.py sdist bdist_wheel # deprecated
-# python -c "from setuptools import setup; setup()" build # deprecated
-python -m build
-python -m twine check .\dist\*
+uvx --from wheel wheel tags --platform-tag manylinux_2_17_x86_64.manylinux2014_x86_64 --remove dist/*.whl
+```
+
+Check that the binary inside the wheel actually runs:
+
+```shell
+uv venv .wheel-test
+uv pip install --python .wheel-test dist/*.whl
+uv run --no-project --python .wheel-test actionlint --version
 ```
 
 If using token, create file `.pypirc`:
@@ -140,5 +189,7 @@ password = <PyPI token>
 Provide file or insert creds when prompted:
 
 ```shell
-python -m twine upload .\dist\* # --config-file .pypirc
+uvx twine upload dist/* # --config-file .pypirc
 ```
+
+[uv]: https://docs.astral.sh/uv/

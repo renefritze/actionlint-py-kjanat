@@ -1,0 +1,12 @@
+# Input for the wheel smoke test in the release workflows: the packaged
+# actionlint has to REJECT this file, and specifically with an [expression]
+# diagnostic. `github.no_such_context` parses as perfectly valid YAML, so
+# catching it takes actionlint's own expression type checker rather than the
+# YAML reader - which is the part a smoke test should prove is alive.
+name: wheel smoke fixture (invalid)
+on: push
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "${{ github.no_such_context }}"

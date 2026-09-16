@@ -13,6 +13,13 @@ on:
       - _custom_build/**
       - pyproject.toml
       - LICENSE
+
+env:
+  # uv downloads this itself, so no separate python setup step is needed.
+  # bdist_wheel tags the wheel py2.py3-none-<plat>, so the interpreter never
+  # reaches the artifact - it is pinned only to keep the builds predictable.
+  UV_PYTHON: '3.12'
+
 jobs:
   tag:
     runs-on: ubuntu-latest
@@ -26,10 +33,12 @@ jobs:
           # the version is derived from the tags and the distance to them, so
           # the whole history has to be here - a shallow checkout has neither
           fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
       - name: Get version
         id: get-version
         run: |
-          echo "version=$(python ./_custom_build/version.py --release)" | tee "$GITHUB_OUTPUT"
+          echo "version=$(uv run --no-project python ./_custom_build/version.py --release)" | tee "$GITHUB_OUTPUT"
       - name: Push tag only
         uses: stefanzweifel/git-auto-commit-action@v6
         with:
@@ -44,7 +53,7 @@ jobs:
   # config uri, which is workflow_ref (the workflow that was triggered). Behind a
   # workflow_call those two name different files and no single registered trusted
   # publisher can match both.
-  build:
+  build-sdist:
     needs: tag
     runs-on: ubuntu-latest
     permissions:
@@ -55,36 +64,130 @@ jobs:
         with:
           ref: v${{ needs.tag.outputs.version }}
           fetch-depth: 0
-      - name: Set up Python
-        id: set-up-python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.8
-      - run: |
-          python -m pip install --upgrade pip
-          pip install build twine
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
 
       - run: |
-          python -m build
-          VERSION=$(python ./_custom_build/version.py)
+          uv build --sdist
+          VERSION=$(uv run --no-project python ./_custom_build/version.py)
           echo "# Release pip install call"
           echo '```pip install actionlint-py-kjanat=='"$VERSION"'```' >> "$GITHUB_STEP_SUMMARY"
 
       - run: |
           {
-          echo "# Twine check"
-          python -m twine check dist/*
+          echo "# Twine check (sdist)"
+          uvx twine check dist/*
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload package distributions
+      - name: Upload sdist
         uses: actions/upload-artifact@v4
         with:
-          name: build
+          name: dist-sdist
           path: dist/
+
+  build-wheels:
+    needs: tag
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # checksums.cfg's [linux-x86_64] / [linux-arm64] binaries are static
+          # Go executables with no glibc symbol version dependency, so the
+          # manylinux tag is truthful, not just permissive - and it is the only
+          # tag PyPI accepts for a Linux wheel at all ("linux_x86_64" is not).
+          - os: ubuntu-latest
+            manylinux-tag: manylinux_2_17_x86_64.manylinux2014_x86_64
+          - os: ubuntu-24.04-arm
+            manylinux-tag: manylinux_2_17_aarch64.manylinux2014_aarch64
+          # macOS and Windows already get a PyPI-valid tag (e.g.
+          # macosx_11_0_arm64, win_amd64) from bdist_wheel by default. No Intel
+          # macOS runner: GitHub retired macos-13, and cross-tagging an
+          # aarch64-built wheel as x86_64 would ship the wrong binary inside it.
+          - os: macos-14
+          - os: windows-latest
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    defaults:
+      run:
+        # bash everywhere. Under the Windows default (pwsh) a
+        # `{ ... } >> "$GITHUB_STEP_SUMMARY"` block is silently a no-op - pwsh
+        # appends the block's own source text instead of running it - and
+        # `dist/*.whl` never expands either, so those steps only looked green.
+        shell: bash
+    steps:
+      - name: Check out the tag that was just pushed
+        uses: actions/checkout@v5
+        with:
+          ref: v${{ needs.tag.outputs.version }}
+          fetch-depth: 0
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+
+      - run: uv build --wheel
+
+      - name: Retag the wheel as manylinux
+        if: matrix.manylinux-tag
+        run: uvx --from wheel wheel tags --platform-tag "${{ matrix.manylinux-tag }}" --remove dist/*.whl
+
+      - run: |
+          {
+          echo "# Twine check (${{ matrix.os }} wheel)"
+          uvx twine check dist/*
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Install the wheel and exercise the binary it carries
+        run: |
+          uv venv .wheel-test
+          uv pip install --python .wheel-test dist/*.whl
+          run_actionlint() { uv run --no-project --python .wheel-test actionlint "$@"; }
+
+          # each check below says what it verified: a step that passes in
+          # silence is indistinguishable from one that did nothing, which is
+          # the failure mode `shell: bash` above exists to fix.
+
+          # the wheel has to carry the binary it claims to wrap. Nothing else
+          # checks this: fetch_binaries picks the download per platform, so a
+          # stale build or a checksums.cfg that drifted from
+          # VERSION_ACTIONLINT.txt would ship a working binary of the wrong
+          # version and every other step here would still pass.
+          wrapped=$(tr -d '[:space:]' < _custom_build/VERSION_ACTIONLINT.txt)
+          reported=$(run_actionlint --version | head -n1)
+          if [ "$reported" != "$wrapped" ]; then
+            echo "::error::the wheel wraps actionlint $wrapped but the binary reports $reported"
+            exit 1
+          fi
+          echo "version: the binary reports $reported, matching VERSION_ACTIONLINT.txt"
+
+          # a workflow with contexts, a matrix, an action reference and a shell
+          # body has to come back clean
+          run_actionlint tests/fixtures/valid-workflow.yml
+          echo "valid fixture: accepted"
+
+          # and one whose only fault is an undefined context property has to be
+          # rejected. That fixture is valid YAML, so catching it takes
+          # actionlint's expression type checker - a binary whose checkers were
+          # dead would still "pass" a fixture that merely fails to parse.
+          if run_actionlint tests/fixtures/invalid-workflow.yml > .wheel-test/smoke.log 2>&1; then
+            echo "::error::the packaged actionlint accepted an undefined context property"
+            exit 1
+          fi
+          if ! grep -q '\[expression\]' .wheel-test/smoke.log; then
+            echo "::error::actionlint rejected the fixture, but not with the [expression] diagnostic it should have"
+            cat .wheel-test/smoke.log
+            exit 1
+          fi
+          echo "invalid fixture: rejected with the [expression] diagnostic"
+
+      - name: Upload wheel
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-wheel-${{ matrix.os }}
+          path: dist/*.whl
 
   publish-to-release:
     name: Publish to public Pypi
-    needs: build
+    needs: [build-sdist, build-wheels]
     runs-on: ubuntu-latest
     environment:
       name: PyPI
@@ -95,11 +198,9 @@ jobs:
       - name: Download package distributions
         uses: actions/download-artifact@v5
         with:
-          name: build
+          pattern: dist-*
           path: dist/
-      - name: Keep only the source distribution
-        # the wheel is platform tagged (e.g. linux_x86_64), which pypi rejects
-        run: rm -f dist/*.whl
+          merge-multiple: true
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:

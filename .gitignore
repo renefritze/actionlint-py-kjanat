@@ -7,5 +7,7 @@ __pycache__
 /dist
 .pypirc
 *.pyc
+# throwaway env the wheel smoke test installs into, in CI and when run by hand
+/.wheel-test
 # resolved at build time from git, never committed
 _custom_build/VERSION_STATIC.txt
