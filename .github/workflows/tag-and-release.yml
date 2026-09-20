@@ -96,14 +96,21 @@ jobs:
           # manylinux tag is truthful, not just permissive - and it is the only
           # tag PyPI accepts for a Linux wheel at all ("linux_x86_64" is not).
           - os: ubuntu-latest
-            manylinux-tag: manylinux_2_17_x86_64.manylinux2014_x86_64
+            platform-tag: manylinux_2_17_x86_64.manylinux2014_x86_64
           - os: ubuntu-24.04-arm
-            manylinux-tag: manylinux_2_17_aarch64.manylinux2014_aarch64
-          # macOS and Windows already get a PyPI-valid tag (e.g.
-          # macosx_11_0_arm64, win_amd64) from bdist_wheel by default. No Intel
-          # macOS runner: GitHub retired macos-13, and cross-tagging an
-          # aarch64-built wheel as x86_64 would ship the wrong binary inside it.
+            platform-tag: manylinux_2_17_aarch64.manylinux2014_aarch64
+          # bdist_wheel derives the macOS tag from the interpreter, and the
+          # runner's CPython is itself universal2, so the wheel came out
+          # macosx_10_13_universal2 while carrying only the darwin-arm64
+          # binary fetch_binaries had selected - a thin Mach-O, confirmed from
+          # its header. pip on an Intel Mac matches universal2, so it would
+          # install a binary that machine cannot execute. Tag the wheel for
+          # what is actually inside it and let Intel Macs fall back to the
+          # sdist, which fetches the right binary. Building an Intel wheel
+          # instead is not an option: GitHub retired the macos-13 runner.
           - os: macos-14
+            platform-tag: macosx_11_0_arm64
+          # win_amd64 already describes the binary bdist_wheel packaged.
           - os: windows-latest
     runs-on: ${{ matrix.os }}
     permissions:
@@ -126,9 +133,9 @@ jobs:
 
       - run: uv build --wheel
 
-      - name: Retag the wheel as manylinux
-        if: matrix.manylinux-tag
-        run: uvx --from wheel wheel tags --platform-tag "${{ matrix.manylinux-tag }}" --remove dist/*.whl
+      - name: Retag the wheel for the binary it actually carries
+        if: matrix.platform-tag
+        run: uvx --from wheel wheel tags --platform-tag "${{ matrix.platform-tag }}" --remove dist/*.whl
 
       - run: |
           {
