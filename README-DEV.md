@@ -108,11 +108,24 @@ the plain platform tag `bdist_wheel` derives on Linux (e.g. `linux_x86_64`) is
 not one PyPI accepts. The embedded binary is a statically linked Go
 executable with no glibc symbol version dependency, so the Linux build steps
 retag it as `manylinux_2_17_*.manylinux2014_*` with `wheel tags` instead — a
-truthful tag, not just a permissive one. macOS and Windows wheels keep the tag
-`bdist_wheel` derives by default. There is no Intel macOS wheel: GitHub retired
-the `macos-13` hosted runner, and tagging an aarch64-built wheel as x86_64
-would ship the wrong binary inside it — installs on Intel Macs still fall back
-to the sdist.
+truthful tag, not just a permissive one.
+
+The macOS wheel is retagged for the same reason, though it took a bad release
+to notice. `bdist_wheel` derives the macOS tag from the interpreter, and the
+runner's CPython is a universal2 build, so 1.13.0.41 shipped a wheel tagged
+`macosx_10_13_universal2` that contained only the thin arm64 binary
+`fetch_binaries` had selected. `universal2` matches an Intel Mac, so pip
+installed it there and the binary would not execute. The `macos-14` leg now
+tags `macosx_11_0_arm64`, which no Intel Mac matches, so those installs fall
+back to the sdist and fetch the `darwin-x86_64` binary. Building an Intel wheel
+instead is not an option — GitHub retired the `macos-13` runner.
+
+Windows is the only platform whose default tag is already right: `win_amd64`
+describes exactly what `bdist_wheel` packaged.
+
+The rule the matrix encodes: a wheel's platform tag has to describe the binary
+inside it, and only Linux's default tag is rejected loudly. macOS's was wrong
+quietly, which is worse.
 
 Every wheel is installed into a throwaway environment before it is uploaded and
 the `actionlint` it carries is put to work, against the fixtures in
@@ -163,11 +176,16 @@ uv build --wheel
 uvx twine check dist/*
 ```
 
-On Linux the wheel comes out tagged `linux_x86_64`, which PyPI rejects. Retag it
-before uploading (use `manylinux_2_17_aarch64.manylinux2014_aarch64` on arm64):
+Retag the wheel before uploading, unless you built it on Windows. On Linux the
+default tag is `linux_x86_64`, which PyPI rejects outright; on macOS it is
+`macosx_*_universal2`, which PyPI accepts but which lies about the single
+architecture actually inside:
 
 ```shell
+# Linux x86_64 (use manylinux_2_17_aarch64.manylinux2014_aarch64 on arm64)
 uvx --from wheel wheel tags --platform-tag manylinux_2_17_x86_64.manylinux2014_x86_64 --remove dist/*.whl
+# macOS on Apple Silicon
+uvx --from wheel wheel tags --platform-tag macosx_11_0_arm64 --remove dist/*.whl
 ```
 
 Check that the binary inside the wheel actually runs:
