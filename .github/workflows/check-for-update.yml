@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v5
       - name: Set up Python
         id: set-up-python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v7
         with:
           python-version: 3.12
       - run: |
@@ -27,18 +27,6 @@ jobs:
 
       - run: python ./_custom_build/auto_update_main.py
         id: check-version
-
-      - name: Abort if branch exists to avoid force push
-        id: abort-pr
-        run: |
-          BRANCH=release-v${{ steps.check-version.outputs.version }}
-          if git fetch origin "$BRANCH:$BRANCH" ; then
-            echo "Aborting to avoid force push"
-            exit 1;
-          else
-            echo "Branch '$BRANCH' can and should be created"
-            exit 0;
-          fi
 
       - name: Debug prints
         run: |
@@ -56,16 +44,16 @@ jobs:
           echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Create Pull Request
-        if: steps.check-version.outputs.update_required == 'true' && steps.abort-pr.conclusion == 'success'
-        uses: peter-evans/create-pull-request@v5.0.2
+        if: steps.check-version.outputs.update_required == 'true'
+        uses: peter-evans/create-pull-request@v8.1.1
         with:
           title: New release v${{ steps.check-version.outputs.version }}
           body: |
-            PR created by workflow `.github/workflows/check-for-update.yaml`
+            PR created by workflow `.github/workflows/check-for-update.yml`
 
             Files `_custom_build/checksums.cfg` and `_custom_build/VERSION_ACTIONLINT.txt` (and other) were updated.
 
-            - [ ] check if checksums are corrent
+            - [ ] check if checksums are correct
             - [ ] check if url download links are correct
 
             See release: ${{ steps.check-version.outputs.release_url }}
