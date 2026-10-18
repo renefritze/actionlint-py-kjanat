@@ -159,7 +159,9 @@ jobs:
           # VERSION_ACTIONLINT.txt would ship a working binary of the wrong
           # version and every other step here would still pass.
           wrapped=$(tr -d '[:space:]' < _custom_build/VERSION_ACTIONLINT.txt)
-          reported=$(run_actionlint --version | head -n1)
+          # only the last field: 1.14.0 prefixes the module path to the
+          # version ("actionlint.kjanat.dev 1.14.0"), 1.13.0 printed it bare
+          reported=$(run_actionlint --version | head -n1 | awk '{print $NF}')
           if [ "$reported" != "$wrapped" ]; then
             echo "::error::the wheel wraps actionlint $wrapped but the binary reports $reported"
             exit 1
