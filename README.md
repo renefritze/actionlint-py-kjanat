@@ -138,7 +138,7 @@ see [README-DEV.md](https://github.com/renefritze/actionlint-py-kjanat/blob/main
     - [ ] auto update docker version in `.pre-commit-hooks.yaml` when using `_custom_build/auto_update_main.py`
 - [x] add `shellcheck-py` as dependency (or at least document)
 - [x] Update tag in readme in github action when releasing new version
-- [ ] Upload also binary distribution, not only source distribution
+- [x] Upload also binary distribution, not only source distribution
 - [ ] Add unit tests to build system
 
 See [README-DEV.md](https://github.com/renefritze/actionlint-py-kjanat/blob/main/README-DEV.md) for more TODOs.

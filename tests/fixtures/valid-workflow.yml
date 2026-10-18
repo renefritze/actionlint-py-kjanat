@@ -1,0 +1,25 @@
+# Input for the wheel smoke test in the release workflows: the packaged
+# actionlint has to accept this file. Deliberately more than a hello world -
+# contexts, a matrix, an action reference and a shell body all have to come
+# back clean, so a binary whose checkers are broken cannot pass by staying
+# quiet. Not under .github/workflows, so it never runs as a workflow.
+name: wheel smoke fixture (valid)
+on:
+  push:
+    branches: [main]
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        value: [1, 2]
+    steps:
+      - uses: actions/checkout@v5
+      - name: read a context and a matrix value
+        run: echo "${{ github.repository }} ${{ matrix.value }}"
+      - name: a shell body, which carries the ShellCheck integration
+        run: |
+          set -euo pipefail
+          for word in one two; do
+            echo "${word}"
+          done
