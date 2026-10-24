@@ -123,7 +123,12 @@ def get_checksums(checksum_file_content):
         if not line:
             continue
         checksum, file = line.split()
-        exe_name, version, platform, machine_with_extension = file.split("_")
+        parts = file.split("_")
+        if len(parts) != 4:
+            # releases also carry assets like the source tarball "actionlint-1.15.0.tar.gz"
+            log.debug(f"Ignoring checksum of non-binary asset: {file}")
+            continue
+        exe_name, version, platform, machine_with_extension = parts
         file_ending = "_" + platform + "_" + machine_with_extension
         yield ChecksumInfo(
             version=checksum,
